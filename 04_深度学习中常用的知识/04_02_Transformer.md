@@ -1,6 +1,45 @@
 
 
-# 1 Embedding 的定义
+# 1 **Self-Attention**
+## 1.1 普通 Attention 
+
+## 1.2 PagedAttention（显存管理优化）
+
+
+- LLM（如 LLaMA、GPT）使用 **Transformer 架构**，其中 **Self-Attention** 是核心计算：
+    - 对输入序列长度为 LLL 的 token，注意力计算复杂度是 **O(L²)**
+    - 长上下文（几万 token）时：
+        - 计算量暴增
+        - GPU 显存消耗极大
+- 普通 Attention 会一次性把整个 **Q, K, V**（query/key/value）矩阵全部加载到显存 → 对大模型/长序列不可行
+
+
+ PagedAttention 的核心思想
+- **分页（Paging）机制）**：
+    - 把长序列拆成 **多个小页（page）**
+    - 每次只把一部分 Q/K/V 加载到显存
+    - 分页计算 attention，然后逐页累加结果
+- **优势**：
+    1. **显存占用降低**
+        - 不必一次性把整个序列加载到 GPU
+        - 可以处理数万 token 的长上下文
+    2. **支持大模型推理**
+        - 即使模型和序列很大，也能在单张 GPU 上运行
+    3. **按需调度 / 异步加载**
+        - 可以边计算边加载下一页数据，提高吞吐率
+
+
+想象一个 图书馆查找书籍：
+普通 Attention = 把所有书都搬到桌子上，一次性查完 → 占空间多
+PagedAttention = 一次只拿几本书查，查完放回，再拿下一批 → 空间少，但最终结果一样
+
+
+vLLM 使用 PagedAttention 技术
+- **显存优化** → 可以推理更长的上下文
+- **批处理优化** → 同时处理多条请求
+- **高吞吐量** → API 服务级别 LLM 推理
+
+# 2 Embedding 的定义
 
 - **Embedding** = 把离散的 token（文字/子词/单词）映射成 **连续的向量**
 - 目的是让模型可以 **用数学运算处理文本信息**
@@ -16,13 +55,13 @@
 - **Token ID → Embedding 向量**：查表得到向量
 - **Embedding 矩阵**：每个 token 的向量按顺序排列，作为 Transformer 输入
 
-## 1.1 Embedding 的实现方式
+## 2.1 Embedding 的实现方式
 
-### 1.1.1 🔹 方法 1：查表（Lookup Table）
+### 2.1.1 🔹 方法 1：查表（Lookup Table）
 ![](image/Pasted%20image%2020250825122307.png)
 
 
-### 1.1.2 方法 2：位置编码（Positional Encoding）
+### 2.1.2 方法 2：位置编码（Positional Encoding）
 
 - Transformer 需要 **顺序信息**
 - 在 token embedding 上加 **位置向量**，告诉模型 token 的顺序
@@ -30,7 +69,7 @@
     - 正弦/余弦编码 (sin/cos)
     - 可训练的位置向量 (learnable positional embedding)
 
-## 1.2 Embedding 输出
+## 2.2 Embedding 输出
 
 - 假设：
     - 序列长度 = L token
@@ -41,7 +80,7 @@
 
 
 
-## 1.3 例子 
+## 2.3 例子 
 
 ![](image/Pasted%20image%2020250825122800.png)
 
@@ -77,7 +116,7 @@ X =
 
 ```
 
-# 2 **线性变换**过程: Q/K/V 矩阵（Query / Key / Value）
+# 3 **线性变换**过程: Q/K/V 矩阵（Query / Key / Value）
 
 - **位置**：在 Transformer 的 **Self-Attention 层**
 - **作用**：用于计算 token 之间的注意力（Attention），决定每个 token 应该关注序列中的哪些部分
@@ -99,7 +138,7 @@ X =
 
 
 
-# 3 **LLM 中 Self-Attention 的流程示意图**，展示 token、embedding、Q/K/V 矩阵及 Attention 输出的关系：
+# 4 **LLM 中 Self-Attention 的流程示意图**，展示 token、embedding、Q/K/V 矩阵及 Attention 输出的关系：
 
 
 ```
@@ -133,7 +172,7 @@ O_1, O_2, O_3
 
 
 
-# 4 优化器
+# 5 优化器
 
 https://blog.csdn.net/qq_53250079/article/details/128981653
 
@@ -144,7 +183,7 @@ https://blog.csdn.net/qq_53250079/article/details/128981653
 优化器不是只存权重，它还会保存一些**额外的变量**来帮助训练更快收敛，这些变量就是 **优化器状态**。
 
 
-## 4.1 Adam 优化器的状态
+## 5.1 Adam 优化器的状态
 
 Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑更新。
 
@@ -160,7 +199,7 @@ Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑�
 所以，除了存参数外，Adam 还要存 **m 和 v**。
 
 
-## 4.2 显存占用对比
+## 5.2 显存占用对比
 
 - **参数 (weights)**：大小 = 参数数 × dtype大小
     

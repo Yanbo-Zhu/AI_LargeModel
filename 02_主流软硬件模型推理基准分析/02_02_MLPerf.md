@@ -149,3 +149,32 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 影响。MLPerf Inference(0.5版本)于2019年10月进行了测试。我们收到了来自14个组织的600多份提交，涵盖了各种任务、框架和平台。审计测试自动评估了提交的文件，并将其中的595份文件清除为有效。结果显示了从嵌入式设备和智能手机到数据中心系统的四个数量级的性能变化，展示了不同的指标和推理场景如何在更稳健地访问AI推理加速器方面有用。
 
 跟上时代。由于ML仍在不断发展，我们建立了一个定期维护和更新MLPerf Inference的流程。请参阅[http://mlperf.org](https://link.zhihu.com/?target=http%3A//mlperf.org)了解最新的基准、规则等。
+
+
+
+
+# 4 open_orca 数据集 
+
+
+Validation 数据集
+- **用途**：模型推理时的 **性能评估（throughput/latency）和准确率验证**。
+- **特点**：
+    - 数据规模通常较大，覆盖任务的代表性样本。
+    - 在 MLPerf 中用于生成官方指标，比如 QPS（queries per second）、延迟分布，以及 accuracy。
+    - 不能随意修改或子采样，保证结果可复现、可比。
+
+
+Calibration 数据集
+- **用途**：**INT8/FP16 量化时的校准数据**。
+- **特点**：
+    - 规模远小于 validation 数据集（只需几百到几千样本）。
+    - 主要用于计算激活分布（activation distribution），从而确定量化 scale/zero-point 或校准表。
+    - **不会**用来算最终性能或准确率指标，只是辅助量化。
+
+总结 
+- **Validation** → 大规模，用来跑 benchmark 得出性能+准确率结果。
+- **Calibration** → 小规模，只在量化推理场景下用来校准权重/激活范围，不参与最终评测。
+
+
+
+
