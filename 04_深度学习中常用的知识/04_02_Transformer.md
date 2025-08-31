@@ -219,3 +219,69 @@ Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑�
 - **优化器状态** = 优化器为每个参数额外保存的变量（例如 Adam 的 mmm 和 vvv）。
 - 作用：帮助训练更稳定、更快收敛。
 - 代价：显存占用通常是 **参数大小的 2–4 倍**。
+
+
+# 6 tokenizer
+
+在 **大模型（LLM, Large Language Model）** 中，**tokenizer（分词器）** 是非常关键的一步。它的作用就是把原始的文本（字符串）转换成模型可以理解和处理的 **token 序列**。
+
+为什么需要 tokenizer？
+- 神经网络不能直接处理文字（"我爱NLP"），只能处理数字（向量）。
+- tokenizer 就是把自然语言转换成数字序列的“翻译器”。
+- 如果没有 tokenizer，模型就不知道“一个词或字”对应什么数字。
+
+用户输入文本 → tokenizer 编码 → token ID 序列
+        → 大模型（Transformer 等）处理 → token ID 序列
+        → tokenizer 解码 → 输出文本
+
+
+## 6.1 Tokenizer 的主要作用
+
+1. **切分文本 → token**
+    - 把原始文本按规则切分成基本单元（token）。
+    - token 可以是 **字符**、**词**、**子词（subword）**，甚至是字节。
+    - 举例（英文 BPE 分词）：
+        `"unbelievable" → ["un", "believ", "able"]`
+    - 中文例子（SentencePiece）：
+        `"我爱自然语言处理" → ["我", "爱", "自然", "语言", "处理"]`
+2. **建立词表 (vocabulary)**
+    - 给每个 token 分配一个唯一的 ID。
+    - 例如：
+        `"我" → 101 "爱" → 102 "自然" → 103`
+        
+3. **文本转数字序列**
+    - 输入文本 → token ID 列表（整型序列）。
+    - 例如：
+        `"我爱自然语言处理" → [101, 102, 103, 104, 105]`
+        
+4. **处理特殊符号**
+    - `"[CLS]"`：序列开始标记
+    - `"[SEP]"`：序列分隔符
+    - `"[PAD]"`：填充符（保证 batch 内长度一致）
+    - `"[UNK]"`：未知词
+5. **解码 (decode)**
+    - tokenizer 还能把模型输出的 ID 序列翻译回自然语言。
+    - 例如：
+        `[101, 102, 103] → "我爱自然"`
+
+
+## 6.2 不同 Tokenizer 的方法
+
+1. **Word-level**（词级，早期方法，中文不适用）
+    
+2. **Character-level**（字符级，粒度太细，序列很长）
+    
+3. **Subword-level（主流）**
+    
+    - BPE（GPT-2, GPT-3, LLaMA 使用）
+        
+    - WordPiece（BERT 使用）
+        
+    - SentencePiece（T5, mT5, LLaMA2 使用）
+        
+    - Unigram LM
+        
+4. **Byte-level**
+    
+    - GPT-2 的 Byte-level BPE → 可以处理任何字符（表情符号、代码、混合语言）
+

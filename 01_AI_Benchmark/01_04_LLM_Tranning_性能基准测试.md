@@ -61,8 +61,7 @@ https://blog.csdn.net/weixin_42605076/article/details/139377171
 
 
 
-
-## 2.3 吞吐量
+## 2.3 吞吐量  / 就是GPU的带宽 
 
 描述：吞吐量测量指的是在单位时间内GPU处理的数据量，通常以每秒处理的样本数（samples per second）或每秒处理的图像数（images per second）表示。这种方法更适合评估GPU在处理大批量数据时的效率。
 

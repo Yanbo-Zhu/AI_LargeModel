@@ -1,10 +1,7 @@
 
-
-
 # 1 总体介绍 
 
 **MLPerf**
-
 - 人工智能计算的跑分软件
     - [MLCommon](https://zhida.zhihu.com/search?content_id=242670823&content_type=Article&match_order=1&q=MLCommon&zhida_source=entity)  
     - 推出的一项基准测试，专门用于测试机器运行人工智能任务时的性能
@@ -35,12 +32,7 @@
 
 
 
-
-
-
-
-
-# 2 
+# 2 MLPerf Inference and MLPref Trainning
 MLPerf Inference Benchmark
 https://arxiv.org/abs/1911.02549
 
@@ -97,9 +89,9 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 ---
 
 
-## 3.1 MLPref 论文
+# 4 MLPref 论文
 
-### 3.1.1 摘要
+### 4.1.1 摘要
 
 - 机器学习(ML)需要行业标准的性能基准来支持许多新兴的ML软件和硬件解决方案的设计和竞争性评估。
 - 但是ML训练提出了其他领域所没有的三个独特的基准挑战:
@@ -116,7 +108,7 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 
 
 
-### 3.1.2 结论
+### 4.1.2 结论
 
 - MLPerf inference的核心贡献是一个全面的框架，用于在一系列用例中测量ML推理性能。我们在这里简要地总结了推理基准测试的三个主要方面。
 
@@ -128,7 +120,7 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 
 
 
-### 3.1.3 引言
+### 4.1.3 引言
 
 机器学习(ML)为计算机视觉([20]、[18]、[34]、[29])、自然语言处理([50]、[16])、自动驾驶汽车([55]、[6])和自主机器人([32])等各种应用提供支持。尽管ml模型训练一直是开发的瓶颈和相当大的费用[4]，但推理已经成为一项关键的工作。模型每天可以处理多达200万亿个查询，并执行超过60亿次翻译[31]。为了满足这些不断增长的计算需求，硬件、软件和系统开发人员通过设计优化的机器学习硬件和软件，专注于各种用例的推理性能。据估计，超过100家公司正在瞄准专门的推理芯片[27]。相比之下，针对培训芯片的企业只有20家左右[48]。
 
@@ -150,10 +142,203 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 
 跟上时代。由于ML仍在不断发展，我们建立了一个定期维护和更新MLPerf Inference的流程。请参阅[http://mlperf.org](https://link.zhihu.com/?target=http%3A//mlperf.org)了解最新的基准、规则等。
 
+## 4.2 基本概念
+https://blog.csdn.net/weixin_58277783/article/details/142006196
+
+MLPerf Inference 有2个基本概念: `sample`和`query`。
+- sample（样本）是运行inference的单位，例如一个image或sentence。
+- query（查询）是一组进行Inference的N个sample。例如单个query包含8个image。
+
+# 5 场景
+
+
+每次运行 LoadGen 都会使用四种模式之一来评估系统的性能，最后提交的结果可以是{models, scenarios}的任意组合。
+
+    Single stream 单流：一系列输入被依次处理，模拟例如用户使用智能手机拍照的真实场景。
+    Multiple stream 多流：固定大小的一批输入被一个接一个地处理，例如检测障碍物的多摄像头汽车系统的真实场景。
+    Server 服务器：输入根据泊松分布到达，例如在线翻译服务、评估在线请求数据中心服务，衡量服务器吞吐量这样的实际场景。
+    Offline 离线：所有输入都可以立即使用，例如在照片标签应用程序、批处理系统中。
+
+# 6 推理基准测试的性能指标
+
+
+- 性能指标：
+	- 延迟、有延迟限制的吞吐量、吞吐量和每个查询的最大推断数。延迟或推理执行时间通常是系统和架构设计师使用的度量标准。
+	- 精度: 
+- AI推理加速器的评估
+
+
+1. **性能**：
+    - **TTFT**（Time‑to‑First‑Token）与 **TPOT**（Time‑per‑Output‑Token），Server/Interactive 关键；
+    - 吞吐（QPS / tokens/s），Offline 关键；
+    - 资源利用：显存占用、带宽、算子覆盖率、引擎构建时间。[GitHub](https://github.com/mlcommons/inference/blob/master/language/llama2-70b/README.md?utm_source=chatgpt.com)
+2. **准确率/一致性**：复用 `evaluate-accuracy.py` 体系，按任务提供对齐的评测集与判分；通过 **TEST06** 做输出一致性校验。[GitHub+1](https://github.com/mlcommons/inference/blob/master/language/llama2-70b/evaluate-accuracy.py?utm_source=chatgpt.com)
+    
+3. **稳定性**：长稳跑、错误率、OOM 率、冷启动时延。
+    
+4. **易用性**：部署步骤、文档完善度、容器与权重管理、对 MLPerf/LoadGen 的即插即用程度。
+    
+5. **能效**（可选）：tokens/J 或 QPS/W。
+
+## 6.1 吞吐 
+QPS / tokens/s
+描述：吞吐量测量指的是在单位时间内GPU处理的数据量，通常以每秒处理的样本数（samples per second）或每秒处理的图像数（images per second）表示。这种方法更适合评估GPU在处理大批量数据时的效率。
+
+优点：
+直接反映GPU处理数据的能力。
+易于比较不同GPU或不同配置的性能。
+
+局限：
+需要对数据进行合理分批，以避免批量大小对结果的影响。
+与运行时间测量类似，可能受到系统其他因素的干扰。
+
+与涉及单个样本数据处理的延迟（Latency）不同，为了实现最大吞吐率（Throughput），我们希望在集群训练的过程中有效并行处理尽可能多的样本数据。这种有效的并行性依赖于数据、模型和设备规模。因此，为了正确测量最大吞吐率，可以执行以下两个步骤：
+
+1. 估计允许最大并行度的最佳训练样本数据批量大小，即Batch Size；
+2. 在AI训练集群中，给定这个最佳Batch Size，测量神经网络模型在一个step每1秒钟内可以处理的训练样本数据。
+
+要找到最佳Batch Size值，一个好的经验法则是达到AI加速卡（GPU/NPU...）对给定数据类型的内存限制，即Batch Size接近占满内存。这取决于硬件类型、神经网络的参数大小以及输入数据的大小等。
+
+
+## 6.2 **准确率
+
+
+### 6.2.1 Rough指标 
+
+ROUGE（Recall-Oriented Understudy for Gisting Evaluation）是一类常用于**自动文本摘要**、**机器翻译**、**文本生成**质量评估的指标。它的核心思想：
+
+> 用 n-gram（词或字的连续片段）来衡量生成文本和参考文本之间的**重叠程度**。
+
+
+ROUGE-1
+- **比较单位**：1-gram（单个词）
+- **含义**：看生成的文本中有多少单词和参考答案匹配。
+- **代表模型是否抓住了主要的关键词。**
+- 举例：
+    - 参考：`the cat sat on the mat`
+    - 生成：`the cat is on the mat`
+    - 重叠词：`the, cat, on, the, mat` → 匹配比例就是 ROUGE-1。
+
+
+----
+
+ROUGE-2
+- **比较单位**：2-gram（连续两个词）
+- **含义**：衡量模型生成的词序与参考文本更长的片段的匹配程度。
+- **比 ROUGE-1 更严格，考虑局部的词序关系。**
+
+- **比较单位**：2-gram = 连续两个词的组合
+    
+- **衡量的东西**：
+    - 不只是看词对不对，还看词和它后面邻居是不是也正确。
+    - 比如模型生成“machine learning”而不是“learning machine”时，顺序对了，ROUGE-2 才加分。
+- **意义**：
+    - 它更严格地要求模型不仅有正确的关键词，还得把这些关键词正确地组合成合适的短语。
+    - 体现模型在局部上下文中（即短语、片段级别）的质量。
+
+🔹 **例子**  
+参考答案：`the cat sat on the mat`  
+模型输出：`the cat is on the mat`
+
+- 单词匹配（ROUGE-1）：`the`, `cat`, `on`, `the`, `mat`（很多词一样）
+- 双词匹配（ROUGE-2）：`the cat`, `on the`, `the mat`（比 ROUGE-1 少）  
+    ➡️ ROUGE-2 低于 ROUGE-1，因为有些短语结构不同。
+
+
+----
+
+ROUGE-L
+- **比较方式**：最长公共子序列（Longest Common Subsequence, LCS）
+- **含义**：看生成文本和参考文本之间，最长的按顺序匹配的子序列有多长。
+- **代表模型在句子整体结构、顺序方面和参考文本的接近程度。**
+
+- **衡量的东西**：
+    - 在保持词的**原始顺序**不变的前提下，模型生成的序列里能和参考文本对上的最长连续或不连续的序列。
+    - ==不要求完全连续，但要求顺序正确==。
+- **意义**：
+    - 体现模型生成文本在句子整体结构和顺序层面的合理性。
+    - 比 ROUGE-1、ROUGE-2 更接近句子级、语义流畅度方面的评价。
+
+参考答案：`the cat sat on the mat`  
+模型输出：`on the mat the cat sat`
+
+---
+
+
+### 6.2.2 实际计算过程中的一些细节
+1. **多参考文本**：有时一个任务会有多个参考答案，需要对比后取最大值或平均值。
+2. **句子级 / 文档级统计**：通常 ROUGE 会在句子或文档级别累加 n-gram 统计后再统一算比例。
+3. **归一化**：有的报告会把原本 0.0～1.0 的得分乘以 100 → 变成百分比形式，比如 ROUGE-1 = 0.444 → 报告成 44.4。
+
+
+---
+
+### 6.2.3 具体计算
+
+拿模型生成的文本（Candidate）和参考文本（Reference），统计两边 n-gram 或 LCS 的**重叠数量**，然后用**召回率 / 精确率 / F1** 来表示。
+
+![[Pasted image 20250831185835.png]]
+
+
+参考文本 (Reference)： （标准答案）
+`the cat sat on the mat`
+
+模型输出 (Candidate)：（模型自己做出来的结果 ）
+the cat is on the mat
+
+
+- **1-gram**
+    - Reference: the, cat, sat, on, the, mat
+    - Candidate: the, cat, is, on, the, mat
+    - 重叠：the, cat, on, the, mat → 5 个
+    - ROUGE-1 (Recall) = 5 / 6 = 0.8333
+        
+- **2-gram**
+    - Reference: the cat, cat sat, sat on, on the, the mat
+    - Candidate: the cat, cat is, is on, on the, the mat
+    - 重叠：the cat, on the, the mat → 3 个
+    - ROUGE-2 (Recall) = 3 / 5 = 0.6
+
+ROUGE-L 是基于 LCS (Longest Common Subsequence) —— 最长公共子序列。
+
+用同样的例子：
+
+Reference: `the cat sat on the mat`  
+Candidate: `the cat is on the mat`
+
+找 LCS：
+- 最长公共子序列 = `the cat on the mat`
+- 长度 = 5
+- Recall = LCS 长度 / 参考文本长度 = 5 / 6 ≈ 0.8333
+- Precision = LCS 长度 / 模型输出长度 = 5 / 6 ≈ 0.8333
+- F1 = 2 × (P × R) / (P + R) ≈ 0.8333
 
 
 
-# 4 open_orca 数据集 
+
+
+
+# 7 LoadGen 
+- **含义**：MLPerf 专门开发的 **负载生成器 (Load Generator)**。
+- **作用**：
+    - 模拟不同 **场景** 下的真实推理请求模式。
+    - 比如：
+        - **单流 (SingleStream)**：像手机实时应用一样，一个个请求顺序到来。
+        - **多流 (MultiStream)**：类似自动驾驶摄像头，多路视频同时输入。
+        - **批处理 (Server/Offline)**：一次处理一大批请求，适合数据中心。
+- **意义**：让不同提交者在 **统一负载模式下测试**，保证结果可比。
+- **类比**：就像跑分软件的“压力测试模块”，确保所有人跑的任务是一致的。
+
+
+MLPerf推理提供了一种方法来模拟被测推理系统的真实行为：开发了负载生成器（LoadGen）工具，它是一个模拟现实系统行为的查询流量生成器，有以下四个测量场景，每个场景解决一类用例，模拟移动设备、自动驾驶车辆、机器人和基于云的设置的机器学习工作负载行为。
+
+Load Generator是MLPerf的负载生成器，用于生成query，跟踪 query 的 Latency 并验证结果的准确性。每次运行 LoadGen 都会使用四种模式之一来评估系统的性能，最后提交的结果可以是{models, scenarios}的任意组合。
+
+
+# 8 open_orca 数据集 
+
+Open-Orca 数据集是一个旨在增强开源==大型语言模型推理能力的文本数据集==。该数据集由 Open-Orca 团队开发，基于 FLAN Collection 数据集，通过向 GPT-4 和 GPT-3.5 提交问题并获取其回答来进行增强。这些增强回答被用作训练和评估自然语言处理模型的数据。
+
 
 
 Validation 数据集
