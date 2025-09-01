@@ -142,14 +142,14 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 
 跟上时代。由于ML仍在不断发展，我们建立了一个定期维护和更新MLPerf Inference的流程。请参阅[http://mlperf.org](https://link.zhihu.com/?target=http%3A//mlperf.org)了解最新的基准、规则等。
 
-## 4.2 基本概念
+# 5 sample and query的意思
 https://blog.csdn.net/weixin_58277783/article/details/142006196
 
 MLPerf Inference 有2个基本概念: `sample`和`query`。
 - sample（样本）是运行inference的单位，例如一个image或sentence。
 - query（查询）是一组进行Inference的N个sample。例如单个query包含8个image。
 
-# 5 场景
+# 6 场景
 
 
 每次运行 LoadGen 都会使用四种模式之一来评估系统的性能，最后提交的结果可以是{models, scenarios}的任意组合。
@@ -159,7 +159,7 @@ MLPerf Inference 有2个基本概念: `sample`和`query`。
     Server 服务器：输入根据泊松分布到达，例如在线翻译服务、评估在线请求数据中心服务，衡量服务器吞吐量这样的实际场景。
     Offline 离线：所有输入都可以立即使用，例如在照片标签应用程序、批处理系统中。
 
-# 6 推理基准测试的性能指标
+# 7 推理基准测试的性能指标
 
 
 - 性能指标：
@@ -180,7 +180,7 @@ MLPerf Inference 有2个基本概念: `sample`和`query`。
     
 5. **能效**（可选）：tokens/J 或 QPS/W。
 
-## 6.1 吞吐 
+## 7.1 吞吐 
 QPS / tokens/s
 描述：吞吐量测量指的是在单位时间内GPU处理的数据量，通常以每秒处理的样本数（samples per second）或每秒处理的图像数（images per second）表示。这种方法更适合评估GPU在处理大批量数据时的效率。
 
@@ -200,10 +200,10 @@ QPS / tokens/s
 要找到最佳Batch Size值，一个好的经验法则是达到AI加速卡（GPU/NPU...）对给定数据类型的内存限制，即Batch Size接近占满内存。这取决于硬件类型、神经网络的参数大小以及输入数据的大小等。
 
 
-## 6.2 **准确率
+## 7.2 准确率
 
 
-### 6.2.1 Rough指标 
+### 7.2.1 Rough指标 
 
 ROUGE（Recall-Oriented Understudy for Gisting Evaluation）是一类常用于**自动文本摘要**、**机器翻译**、**文本生成**质量评估的指标。它的核心思想：
 
@@ -265,7 +265,7 @@ ROUGE-L
 ---
 
 
-### 6.2.2 实际计算过程中的一些细节
+### 7.2.2 实际计算过程中的一些细节
 1. **多参考文本**：有时一个任务会有多个参考答案，需要对比后取最大值或平均值。
 2. **句子级 / 文档级统计**：通常 ROUGE 会在句子或文档级别累加 n-gram 统计后再统一算比例。
 3. **归一化**：有的报告会把原本 0.0～1.0 的得分乘以 100 → 变成百分比形式，比如 ROUGE-1 = 0.444 → 报告成 44.4。
@@ -273,7 +273,7 @@ ROUGE-L
 
 ---
 
-### 6.2.3 具体计算
+### 7.2.3 具体计算
 
 拿模型生成的文本（Candidate）和参考文本（Reference），统计两边 n-gram 或 LCS 的**重叠数量**，然后用**召回率 / 精确率 / F1** 来表示。
 
@@ -318,7 +318,7 @@ Candidate: `the cat is on the mat`
 
 
 
-# 7 LoadGen 
+# 8 LoadGen 
 - **含义**：MLPerf 专门开发的 **负载生成器 (Load Generator)**。
 - **作用**：
     - 模拟不同 **场景** 下的真实推理请求模式。
@@ -335,7 +335,46 @@ MLPerf推理提供了一种方法来模拟被测推理系统的真实行为：�
 Load Generator是MLPerf的负载生成器，用于生成query，跟踪 query 的 Latency 并验证结果的准确性。每次运行 LoadGen 都会使用四种模式之一来评估系统的性能，最后提交的结果可以是{models, scenarios}的任意组合。
 
 
-# 8 open_orca 数据集 
+## 8.1 qsl_idx 就是 Query Sample Library index 的缩写
+
+**`qsl_idx` 是验证集样本的唯一编号（索引），LoadGen 在 accuracy 日志里用它标记预测属于哪一条数据。**
+
+
+在 MLPerf Inference 里，qsl_idx 就是 Query Sample Library index 的缩写，全称 Query Sample Library Index。
+- MLPerf Inference 的负载生成器（**LoadGen**）会不断发起查询请求，每个请求对应验证集/校准集里的一个样本。
+- 这些样本都由 **QSL（Query Sample Library）** 统一管理，可以理解为“测试集中所有样本的一个编号数组”。
+
+
+----
+`qsl_idx` 的含义
+- 每个样本 sample (一个句子 或者 好几个句子的组合 )在 QSL 里有一个唯一的 **整数 ID**，就是 `qsl_idx`。    
+- 在 accuracy 日志（`mlperf_log_accuracy.json`）里，预测结果会带上这个 `qsl_idx`，用来表明 **“这是第几号样本的输出”**。
+- 脚本在解析日志时，就靠 `qsl_idx` 去找到对应的参考答案（ground truth）。
+
+```
+{
+  "qsl_idx": 1234,
+  "data": "7f3a...hex..."
+}
+
+```
+
+表示 第 1234 个样本 的输出是 "data" 里那串 token 序列。
+
+---
+
+假设验证集有 24,576 条数据，那么：
+- QSL 会包含这 24,576 条的索引：`0, 1, 2, ..., 24575`。
+- 日志里每个 `qsl_idx` 就是这些编号之一。
+- 我们在代码里：
+    `target = targets[qsl_idx]   # 找到对应的参考答案`
+    这样就能对齐预测和 ground truth
+
+
+
+
+
+# 9 open_orca 数据集 
 
 Open-Orca 数据集是一个旨在增强开源==大型语言模型推理能力的文本数据集==。该数据集由 Open-Orca 团队开发，基于 FLAN Collection 数据集，通过向 GPT-4 和 GPT-3.5 提交问题并获取其回答来进行增强。这些增强回答被用作训练和评估自然语言处理模型的数据。
 

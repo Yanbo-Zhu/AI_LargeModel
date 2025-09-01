@@ -1,9 +1,47 @@
 
 
-# 1 **Self-Attention**
-## 1.1 普通 Attention 
 
-## 1.2 PagedAttention（显存管理优化）
+
+
+# 1 **LLM 中 Self-Attention 的流程示意图**
+展示 token、embedding、Q/K/V 矩阵及 Attention 输出的关系：
+
+
+```
+文本输入: "Hello world!"
+           │
+           ▼
+Tokenization
+["Hello", " world", "!"]
+           │
+           ▼
+Embedding (每个 token → 向量)
+E_1, E_2, E_3
+           │
+           ▼
+线性变换 → 得到 Q/K/V
+Q = [Q1, Q2, Q3]
+K = [K1, K2, K3]
+V = [V1, V2, V3]
+           │
+           ▼
+Attention 计算
+Attention(Q,K,V) = softmax(QK^T / √d_k) V
+           │
+           ▼
+输出向量
+O_1, O_2, O_3
+(每个 token 的新表示，包含上下文信息)
+
+```
+
+
+
+
+# 2 **Self-Attention**
+## 2.1 普通 Attention 
+
+## 2.2 PagedAttention（显存管理优化）
 
 
 - LLM（如 LLaMA、GPT）使用 **Transformer 架构**，其中 **Self-Attention** 是核心计算：
@@ -39,7 +77,50 @@ vLLM 使用 PagedAttention 技术
 - **批处理优化** → 同时处理多条请求
 - **高吞吐量** → API 服务级别 LLM 推理
 
-# 2 Embedding 的定义
+
+# 3 Attention Mask
+
+**attention mask 就是一张“遮罩图”，告诉模型哪些 token 有效，哪些是 padding 或未来的，计算注意力时要忽略掉。**
+
+在 Transformer 的 Self-Attention 里，模型要对序列里每个位置去“看”其他位置的 token。  
+但有些位置我们**不想让它被关注**，例如：
+
+- **Pad 部分**：补齐长度的 `<pad>` 只是占位，没有语义。
+    
+- **因果遮罩（causal mask）**：在解码阶段，位置 _t_ 的 token 只能看前面的，不允许看到未来 token。
+    
+- **其他特殊用途**：比如 segment 区分、多任务时屏蔽一部分。
+    
+
+👉 这时候就需要一张“遮罩图（mask matrix）”，告诉 Attention 哪些地方可以算，哪些要忽略。
+
+
+
+在 Hugging Face 里的常见定义
+
+通常 `attention_mask` 是一个二维矩阵 `[batch_size, seq_len]`，值域是：
+- **1** = 这个位置是真实 token，需要参与计算。
+- **0** = 这个位置是 padding，需要屏蔽掉。
+
+举个例子，序列长度对齐到 8：
+输入 token ids：
+`[101, 12, 13, 102, 0, 0, 0, 0]`
+
+对应 attention mask：
+`[1,   1,  1,  1, 0, 0, 0, 0]`
+
+---
+
+在 Attention 的公式里有：
+
+![[Pasted image 20250901223325.png]]
+
+其中 **mask** 会把不该看的地方加上一个很大的负数（如 `-1e9`），softmax 后几乎为 0。  
+结果就是：模型在算注意力分布时，不会把 pad 的 token 或未来 token 考虑进去。
+
+
+
+# 4 Embedding 的定义
 
 - **Embedding** = 把离散的 token（文字/子词/单词）映射成 **连续的向量**
 - 目的是让模型可以 **用数学运算处理文本信息**
@@ -55,13 +136,17 @@ vLLM 使用 PagedAttention 技术
 - **Token ID → Embedding 向量**：查表得到向量
 - **Embedding 矩阵**：每个 token 的向量按顺序排列，作为 Transformer 输入
 
-## 2.1 Embedding 的实现方式
 
-### 2.1.1 🔹 方法 1：查表（Lookup Table）
+
+
+
+## 4.1 Embedding 的实现方式
+
+### 4.1.1 🔹 方法 1：查表（Lookup Table）
 ![](image/Pasted%20image%2020250825122307.png)
 
 
-### 2.1.2 方法 2：位置编码（Positional Encoding）
+### 4.1.2 方法 2：位置编码（Positional Encoding）
 
 - Transformer 需要 **顺序信息**
 - 在 token embedding 上加 **位置向量**，告诉模型 token 的顺序
@@ -69,7 +154,7 @@ vLLM 使用 PagedAttention 技术
     - 正弦/余弦编码 (sin/cos)
     - 可训练的位置向量 (learnable positional embedding)
 
-## 2.2 Embedding 输出
+## 4.2 Embedding 输出
 
 - 假设：
     - 序列长度 = L token
@@ -80,7 +165,7 @@ vLLM 使用 PagedAttention 技术
 
 
 
-## 2.3 例子 
+## 4.3 例子 
 
 ![](image/Pasted%20image%2020250825122800.png)
 
@@ -116,7 +201,7 @@ X =
 
 ```
 
-# 3 **线性变换**过程: Q/K/V 矩阵（Query / Key / Value）
+# 5 **线性变换**过程: Q/K/V 矩阵（Query / Key / Value）
 
 - **位置**：在 Transformer 的 **Self-Attention 层**
 - **作用**：用于计算 token 之间的注意力（Attention），决定每个 token 应该关注序列中的哪些部分
@@ -138,41 +223,7 @@ X =
 
 
 
-# 4 **LLM 中 Self-Attention 的流程示意图**，展示 token、embedding、Q/K/V 矩阵及 Attention 输出的关系：
-
-
-```
-文本输入: "Hello world!"
-           │
-           ▼
-Tokenization
-["Hello", " world", "!"]
-           │
-           ▼
-Embedding (每个 token → 向量)
-E_1, E_2, E_3
-           │
-           ▼
-线性变换 → 得到 Q/K/V
-Q = [Q1, Q2, Q3]
-K = [K1, K2, K3]
-V = [V1, V2, V3]
-           │
-           ▼
-Attention 计算
-Attention(Q,K,V) = softmax(QK^T / √d_k) V
-           │
-           ▼
-输出向量
-O_1, O_2, O_3
-(每个 token 的新表示，包含上下文信息)
-
-```
-
-
-
-
-# 5 优化器
+# 6 优化器
 
 https://blog.csdn.net/qq_53250079/article/details/128981653
 
@@ -183,7 +234,7 @@ https://blog.csdn.net/qq_53250079/article/details/128981653
 优化器不是只存权重，它还会保存一些**额外的变量**来帮助训练更快收敛，这些变量就是 **优化器状态**。
 
 
-## 5.1 Adam 优化器的状态
+## 6.1 Adam 优化器的状态
 
 Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑更新。
 
@@ -199,7 +250,7 @@ Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑�
 所以，除了存参数外，Adam 还要存 **m 和 v**。
 
 
-## 5.2 显存占用对比
+## 6.2 显存占用对比
 
 - **参数 (weights)**：大小 = 参数数 × dtype大小
     
@@ -221,7 +272,7 @@ Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑�
 - 代价：显存占用通常是 **参数大小的 2–4 倍**。
 
 
-# 6 tokenizer
+# 7 tokenizer
 
 在 **大模型（LLM, Large Language Model）** 中，**tokenizer（分词器）** 是非常关键的一步。它的作用就是把原始的文本（字符串）转换成模型可以理解和处理的 **token 序列**。
 
@@ -235,7 +286,7 @@ Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑�
         → tokenizer 解码 → 输出文本
 
 
-## 6.1 Tokenizer 的主要作用
+## 7.1 Tokenizer 的主要作用
 
 1. **切分文本 → token**
     - 把原始文本按规则切分成基本单元（token）。
@@ -265,7 +316,7 @@ Adam 使用了 **动量 (momentum)** 和 **二阶动量 (variance)** 来平滑�
         `[101, 102, 103] → "我爱自然"`
 
 
-## 6.2 不同 Tokenizer 的方法
+## 7.2 不同 Tokenizer 的方法
 
 1. **Word-level**（词级，早期方法，中文不适用）
     

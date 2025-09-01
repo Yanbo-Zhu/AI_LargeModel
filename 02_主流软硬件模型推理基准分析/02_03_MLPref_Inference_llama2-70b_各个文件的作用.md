@@ -391,7 +391,107 @@ cd ../../loadgen && python3 -m pip install .
 
 
 
-# 2 evaluate_accuracy.py
+# 2 accruacy 测试 
+
+
+
+## 2.1 evaluate_accuracy.py和consolidate_results.py的比较
+
+
+- **快速整体评估** → 用 `evaluate-accuracy.py`，轻量、直接吃日志。
+- **生成逐样本可追溯结果** → 用 `consolidate_results.py`，带详细列并保存结果表。
+
+什么时候用哪个？
+- 你**已经有 MLPerf accuracy 日志**，只是想**快速出总体 ROUGE 与生成长度统计** → 用 **evaluate-accuracy.py**（更轻量、可多进程、无需汇总逐样本列）。
+- 你在推理阶段**把每个批次的输出都落成了 `q*.pkl`**，现在想要
+    1. **可追溯到每条样本**的 token 序列与文本，
+    2. 带逐样本 ROUGE 列，
+    3. 最终做成一个**统一 pkl 表**供后续分析/绘图/过滤  
+        → 用 **consolidate_results.py**。
+
+
+---
+
+输入与输出
+- **evaluate-accuracy.py**
+	- 从 **MLPerf 的 accuracy 日志**（`mlperf_log_accuracy.json`）里把生成的**token id**读出来，解码成文本，与验证集参考答案算 ROUGE；不依赖你事先把每条样本的输出单独保存成 pkl。
+    - 输入：MLPerf 生成的 **accuracy 日志**（`mlperf_log_accuracy.json`）+ 验证集 pkl.  
+    - 输出：打印 **ROUGE 平均分** 和一些统计量（生成长度、token 数等），不修改或生成新的数据文件。
+- **consolidate_results.py**
+	- 从你在推理阶段落盘的**分片 pkl 文件**（形如 `run_outputs/q*.pkl`）里，按样本 ID 汇总**每条样本的输出**，做解码与 ROUGE，并把**逐样本结果写回一个总表 pkl**。
+    - 输入：推理阶段落盘的 __q_.pkl 分片输出_* + 验证集 pkl
+    - 输出：生成带有逐样本预测、解码文本、ROUGE 的 **完整 pkl 表**（默认 `full_output.pkl`），用于后续分析。
+
+评价计算（ROUGE）
+- evaluate-accuracy.py
+    - 将（预测、参考）按句子断行后，**并行**（`multiprocessing.Pool`，按 CPU 核数分片）调用 `evaluate.load("rouge")`，把每个分片的明细结果汇总再求均值（×100，四位小数）。
+- consolidate_results.py
+    - 直接一次性计算 ROUGE（`use_aggregator=False`），随后对 `rouge1/rouge2/rougeL` 逐列求均值（×100，四位小数）。同时 **断言**每个 ROUGE 列的条数都是 24576。
+
+输出内容
+- **evaluate-accuracy.py**（仅打印汇总指标）：
+    - ROUGE 均值（rouge1, rouge2, rougeL 等）
+    - 生成总长度、样本数、总 token 数、平均 token 长度。
+- **consolidate_results.py**（生成带明细的 pkl）：
+    - 新增列：预测 token 序列、预测文本、预测长度、逐样本 ROUGE1/2/L
+    - 打印：ROUGE 均值、平均序列长度
+    - 保存到 `full_output.pkl`。
+
+命令行参数、参数接口
+- evaluate-accuracy.py：需要 `--checkpoint-path`、`--mlperf-accuracy-file`、`--dataset-file`，可选 `--dtype`（`int32/int64/float`）与 `--verbose`。
+- consolidate_results.py：需要/可选 `--dataset-path`、`--run-outputs`（默认 `run_outputs`）、`--model-dir`、`--output-pkl-path`（默认 `full_output.pkl`）。
+
+读取与预处理
+- evaluate-accuracy.py
+    - 读取验证集（pkl）取 `output` 作为参考答案。
+    - 读取 MLPerf accuracy 日志，按照 `qsl_idx` 去重并收集每条样本的**十六进制编码**数据，按 `--dtype` 还原为 token id。
+    - 使用 `AutoTokenizer.from_pretrained(checkpoint_path)` 解码；下载 `nltk` 的 `punkt` 和 `punkt_tab`，并把句子按行拆分以适配 ROUGELSum。
+- consolidate_results.py
+    - 扫描 `run_outputs/q*.pkl`，逐个 pkl 合并到一个 `qid -> output_token_ids` 的字典；**断言**每个 `qid` 只出现一次。
+    - **显式裁剪 EOS**：找到第一个 token `2`（LLama 的 </s>），截断到该位置；统计“没有 EOS 的样本数”。
+    - 使用 `LlamaTokenizerFast.from_pretrained(model_dir)` 解码。
+
+数据处理流程
+- **evaluate-accuracy.py**
+    1. 读验证集 → 得到参考答案。
+    2. 解析 MLPerf 日志 → 恢复 token 序列（按 dtype）。
+    3. 使用 `AutoTokenizer` 解码。
+    4. 分 chunk 并行算 ROUGE，最后输出整体均值和统计信息。
+- **consolidate_results.py**
+    1. 扫描 `run_outputs/q*.pkl` → 汇总成 `qid → outputs`。
+    2. **裁剪 EOS token (id=2)**，统计缺失 EOS 的样本。
+    3. 使用 `LlamaTokenizerFast` 解码。
+    4. 一次性算 ROUGE（每个样本），写回 DataFrame 新列，保存成 pkl。
+
+
+
+ 产出与统计
+- evaluate-accuracy.py（**仅打印**总体统计）：
+    - 打印 `rouge*` 均值；额外给出
+        - `gen_len`（预测文本总字符数）、`gen_num`（样本数）、`gen_tok_len`（生成 token 总数）、`tokens_per_sample`（平均生成长度）。
+- consolidate_results.py（**写回汇总表**）：
+    - 在原验证集 DataFrame 里新增列：
+        - `gen_output_tok_id`、`gen_output_text`、`gen_output_tok_len`、`rouge1/2/L`，并 **保存为 `output_pkl_path`（默认 `full_output.pkl`）**；同时打印平均输出序列长度与 ROUGE 均值。
+
+
+健壮性与一致性假设
+- evaluate-accuracy.py
+    - 用 `seen` 集合防止同一 `qsl_idx` 被重复计入；对样本总数不做强约束，适合直接吃 MLPerf 的 accuracy 日志。
+    - 避免重复 `qsl_idx`，但对样本总数不强约束
+- consolidate_results.py
+    - **强约束 24576 条**：`assert len(run_outputs) == 24576`，并对 ROUGE 明细也断言 24576；适合固定大小的数据集与完整输出落盘流程。
+    - 严格断言 24576 条数据、ROUGE 结果长度必须对齐
+
+
+ Tokenizer 与依赖
+- evaluate-accuracy.py：`AutoTokenizer`（`use_fast=False`，`padding_side="left"`，`model_max_length=2048`）；下载 `punkt` 与 `punkt_tab`。
+- consolidate_results.py：`LlamaTokenizerFast`；仅下载 `punkt`。
+
+
+
+
+
+## 2.2 evaluate_accuracy.py
 
 
 把 **MLPerf accuracy 日志**（`mlperf_log_accuracy.json`）里模型生成的**token 序列**解码成文本，与数据集里的**参考答案**对齐，计算 **ROUGE** 指标，并输出汇总统计（包括生成长度统计）。为加速评测，ROUGE 计算采用 **多进程并行**。
@@ -401,7 +501,16 @@ cd ../../loadgen && python3 -m pip install .
 输出：打印一个字典（各 ROUGE 的平均分 ×100，保留 4 位小数；以及长度统计）。
 
 
-## 2.1 参数与输入输出
+- 时间主要花在 **tokenizer 解码** 和 **ROUGE** 计算。
+    
+- 并行能显著缩短 ROUGE 时间；I/O 与 JSON 解析开销较小。
+    
+- 内存主要由 `preds_token_ids`、`preds_decoded_text` 和 ROUGE 中间结构占用；在 2~3 万样本规模通常可接受。
+
+
+
+
+### 2.2.1 参数与输入输出
 
 输入
 - `--checkpoint-path`：HF 格式的模型或分词器目录（用于 `AutoTokenizer` 解码生成的 token）。
@@ -422,7 +531,7 @@ cd ../../loadgen && python3 -m pip install .
 
 ---
 
-## 2.2 主要流程
+### 2.2.2 主要流程
 
 
 
@@ -515,7 +624,7 @@ final_result = {k: round(np.mean(v) * 100, 4) for k, v in aggregated_results.ite
 print(final_result)
 
 
-## 2.3 关键实现细节与假设
+### 2.2.3 关键实现细节与假设
 
 - **对齐方式**：用 `qsl_idx` 对齐预测与参考答案；假设 `dataset_file` 的 `data["output"]` 与 MLPerf 的 QSL 索引一致（`targets[qsl_idx]` 有效）。
     
@@ -530,7 +639,7 @@ print(final_result)
 
 ---
 
-## 2.4 易踩坑与改进建议
+### 2.2.4 易踩坑与改进建议
 
 1. **`punkt_tab` 资源**
     
@@ -563,15 +672,7 @@ print(final_result)
 
 ---
 
-# 3 复杂度与性能
-
-- 时间主要花在 **tokenizer 解码** 和 **ROUGE** 计算。
-    
-- 并行能显著缩短 ROUGE 时间；I/O 与 JSON 解析开销较小。
-    
-- 内存主要由 `preds_token_ids`、`preds_decoded_text` 和 ROUGE 中间结构占用；在 2~3 万样本规模通常可接受。
-
-## 3.1 源码
+### 2.2.5 源码
 
 ```
 import argparse
@@ -735,7 +836,7 @@ if __name__ == "__main__":
 
 
 
-# 4 consolidate_results.py 
+## 2.3 consolidate_results.py 
 
 
 把大模型推理生成的 token 序列（存放在 run_outputs/ 里）解码成文本，和参考答案比对，计算 ROUGE 分数，并把结果保存到一个新的 `.pkl` 文件。
@@ -750,7 +851,7 @@ if __name__ == "__main__":
 
 
 
-## 4.1 导入依赖
+### 2.3.1 导入依赖
 
 - `argparse`：解析命令行参数
     
@@ -767,7 +868,7 @@ if __name__ == "__main__":
 
 ---
 
-## 4.2 参数解析 (`get_args()`)
+### 2.3.2 参数解析 (`get_args()`)
 
 脚本支持几个命令行参数：
 
@@ -782,7 +883,7 @@ if __name__ == "__main__":
 
 ---
 
-## 4.3 加载函数
+### 2.3.3 加载函数
 
 - `load_dataset(p)`：加载原始数据集（pandas DataFrame，里面有 `output` 列作为参考答案）。
     
@@ -803,7 +904,7 @@ if __name__ == "__main__":
 
 ---
 
-## 4.4 主流程 (`main(args)`)
+### 2.3.4 主流程 (`main(args)`)
 
 1. **准备工具**
     
@@ -885,7 +986,7 @@ if __name__ == "__main__":
 
 
 
-## 4.5 源码
+### 2.3.5 源码
 
 ```
 import argparse
@@ -1027,3 +1128,272 @@ if __name__ == "__main__":
     main(get_args())
 
 ```
+
+
+
+# 3 SUT.py
+
+
+## 3.1 process_queries()
+
+
+```SQL
+def process_queries(self):  
+    """Processor of the queued queries. User may choose to add batching logic"""  
+  
+    while True:  
+        qitem = self.query_queue.get()  
+        if qitem is None:  
+            break  
+  
+        query_ids = [q.index for q in qitem]  
+  
+        fname = "q" + "_".join([str(i) for i in query_ids])  
+        fname = f"run_outputs/{fname}.pkl"  
+        _p = Path(fname)  
+        if self.use_cached_outputs and _p.exists():  
+            # Read cache  
+            with _p.open(mode="rb") as f:  
+                d = pickle.load(f)  
+            processed_output = d["outputs"]  
+            tik1 = None  
+            tik2 = None  
+            tik3 = None  
+            tok = None  
+        else:  
+            # Construct / collate batch  
+            max_seq_len = 1024  
+  
+            tik1 = time.time()  
+  
+            input_ids_tensor = []  
+            input_masks_tensor = []  
+            input_len = []  
+            for q in qitem:  
+                input_ids_tensor.append(  
+                    pad(  
+                        self.data_object.input_ids[q.index],  
+                        (  
+                            max_seq_len -  
+                            self.data_object.input_lens[q.index],  
+                            0,  
+                            0,  
+                            0,  
+                        ),  
+                        value=self.tokenizer.pad_token_id,  
+                    )  
+                )  
+                input_masks_tensor.append(  
+                    pad(  
+                        self.data_object.attention_masks[q.index],  
+                        (  
+                            max_seq_len -  
+                            self.data_object.input_lens[q.index],  
+                            0,  
+                            0,  
+                            0,  
+                        ),  
+                        value=0,  
+                    )  
+                )  
+                input_len.append(self.data_object.input_lens[q.index])  
+            input_ids_tensor = torch.cat(input_ids_tensor)  
+            input_masks_tensor = torch.cat(input_masks_tensor)  
+  
+            assert input_ids_tensor.shape == input_masks_tensor.shape  
+            assert input_ids_tensor.shape[0] <= self.batch_size  
+  
+            tik2 = time.time()  
+  
+            pred_output_tokens = self.model.generate(  
+                input_ids=input_ids_tensor,  
+                attention_mask=input_masks_tensor,  
+                pad_token_id=self.tokenizer.pad_token_id,  
+                **gen_kwargs,  
+            )  
+  
+            tik3 = time.time()  
+  
+            processed_output = self.data_object.postProcess(  
+                pred_output_tokens,  
+                input_seq_lens=input_len,  
+                query_id_list=query_ids,  
+            )  
+  
+        for i in range(len(qitem)):  
+            n_tokens = processed_output[i].shape[0]  
+            response_array = array.array(  
+                "B", processed_output[i].tobytes())  
+            bi = response_array.buffer_info()  
+            response = [  
+                lg.QuerySampleResponse(  
+                    qitem[i].id,  
+                    bi[0],  
+                    bi[1],  
+                    n_tokens)]  
+            lg.QuerySamplesComplete(response)  
+  
+        tok = time.time()  
+  
+        with self.sample_counter_lock:  
+            self.sample_counter += len(qitem)  
+            print(f"Samples run: {self.sample_counter}")  
+            if tik1:  
+                print(f"\tBatchMaker time: {tik2 - tik1}")  
+                print(f"\tInference time: {tik3 - tik2}")  
+                print(f"\tPostprocess time: {tok - tik3}")  
+                print(f"\t==== Total time: {tok - tik1}")  
+            else:  
+                print(f"\tLoaded from cache: {_p}")
+```
+
+### 3.1.1 时间分析
+
+- **BatchMaker** ≈ CPU 侧准备 batch（含 pad/拼接/可选 H2D）所花的时间；
+- **Inference** ≈ 模型生成 token 的纯推理时间（加入 CUDA 同步后更准确）；
+- **Postprocess** ≈ 把模型输出还原成需要的格式 + 通知 LoadGen +（可能的）写盘 I/O 的时间；
+- **Total** = 上面三者的和（再加上它们之间的微小间隙）。
+
+#### 3.1.1.1 BatchMaker time = tik2 - tik1
+
+
+```python
+            # Construct / collate batch  
+            max_seq_len = 1024  
+  
+            tik1 = time.time()  
+  
+            input_ids_tensor = []  
+            input_masks_tensor = []  
+            input_len = []  
+            for q in qitem:  
+                input_ids_tensor.append(  
+                    pad(  
+                        self.data_object.input_ids[q.index],  
+                        (  
+                            max_seq_len -  
+                            self.data_object.input_lens[q.index],  
+                            0,  
+                            0,  
+                            0,  
+                        ),  
+                        value=self.tokenizer.pad_token_id,  
+                    )  
+                )  
+                input_masks_tensor.append(  
+                    pad(  
+                        self.data_object.attention_masks[q.index],  
+                        (  
+                            max_seq_len -  
+                            self.data_object.input_lens[q.index],  
+                            0,  
+                            0,  
+                            0,  
+                        ),  
+                        value=0,  
+                    )  
+                )  
+                input_len.append(self.data_object.input_lens[q.index])  
+            input_ids_tensor = torch.cat(input_ids_tensor)  
+            input_masks_tensor = torch.cat(input_masks_tensor)  
+```
+
+在 tik1 = time.time() 和 tik2 = time.time() 之间做了成批整理（collate）：
+1. 固定 max_seq_len = 1024，对每个样本把 input_ids 与 attention_masks 左侧 pad 到固定长度 (pad((max_seq_len - len, 0, 0, 0), …))，并收集原始长度 input_len。
+2. torch.cat 把单样本张量拼成批张量（batch）。
+3. 两个 assert 校验形状与不超过 self.batch_size。  
+    👉 这段时间只统计了 CPU 上的张量拼接/填充，不包含 GPU 推理与后处理。
+
+
+#### 3.1.1.2 Inference time = tik3 - tik2
+
+在 tik2 与 tik3 之间调用：
+
+```
+pred_output_tokens = self.model.generate(  
+    input_ids=input_ids_tensor,  
+    attention_mask=input_masks_tensor,  
+    pad_token_id=self.tokenizer.pad_token_id,  
+    **gen_kwargs,  
+)
+```
+
+👉 这是模型前向解码阶段（可能是自回归生成，KV cache 等都在这里）。
+
+---
+
+⚠️ 注意：PyTorch 的 CUDA 是异步的。如果 input_ids_tensor/attention_mask 已在 GPU 上、而你没有 torch.cuda.synchronize()，那么 tik3 - tik2 可能低估真实推理时长（计时点到了但 GPU 还在跑）。见下方改进建议。
+PyTorch 的 CUDA 是**异步**的；不用 `torch.cuda.synchronize()` 或 CUDA 事件的话，你测到的是“任务提交时间”，不是“任务完成时间”。在推理前后同步或用 CUDA 事件，才能把 **Inference time** 记到真正的 GPU 计算上，把 **Postprocess time** 从“背锅”里解放出来。
+
+GPU 上的计算（kernels）是**异步**提交的：Python 把一堆 CUDA 工作**排进队列**就立刻返回了，**不等 GPU 真跑完**。  
+于是 `tik3 - tik2` 只测到**把任务“丢给 GPU”**的时间，而不是**GPU 真正跑完**所需的时间。  
+随后你做后处理（通常在 CPU 上），在把结果从 GPU 拷回 CPU（`tensor.cpu()/.numpy()/.tolist()` 等）时会**被动同步**，这会把一部分**计算尾巴**算进你的“Postprocess time”。  
+结果就是：**Inference time 偏小、Postprocess time 偏大**，总时间还能对上，但分摊错了。
+
+
+
+改进意见 
+在 GPU 推理计时前后同步 CUDA（否则 Inference time 可能偏小）：
+
+```python
+# —— 推理前：确保之前的 GPU 工作清空 —
+if torch.cuda.is_available():
+    torch.cuda.synchronize()
+
+tik2 = time.time()
+
+# —— 推理（可能会异步排队）—
+with torch.inference_mode():
+    pred_output_tokens = self.model.generate(
+        input_ids=input_ids_tensor,
+        attention_mask=input_masks_tensor,
+        pad_token_id=self.tokenizer.pad_token_id,
+        **gen_kwargs,
+    )
+
+# —— 推理后：等待 GPU 真正跑完 —
+if torch.cuda.is_available():
+    torch.cuda.synchronize()
+
+tik3 = time.time()
+inference_time = tik3 - tik2
+
+```
+- 同理，如果 `postProcess` 中包含 GPU 上的 ops，也在 `tok = time.time()` 前同步一次。
+
+
+#### 3.1.1.3 **Postprocess time = `tok - tik3`**  
+
+在 `tik3` 与 `tok` 之间做了：
+1. `processed_output = self.data_object.postProcess(...)`：通常包含**截断/去 pad、解码为 token 序列/字节、可能做 Rouge 等统计、以及（你当前实现里）保存结果文件**。
+2. 对每个样本构造 `lg.QuerySampleResponse`、把输出指针交给 LoadGen：
+```python
+for i in range(len(qitem)):  
+    n_tokens = processed_output[i].shape[0]  
+    response_array = array.array(  
+        "B", processed_output[i].tobytes())  
+    bi = response_array.buffer_info()  
+    response = [  
+        lg.QuerySampleResponse(  
+            qitem[i].id,  
+            bi[0],  
+            bi[1],  
+            n_tokens)]  
+    lg.QuerySamplesComplete(response)
+```
+
+这里的 `n_tokens = processed_output[i].shape[0]` 是**输出 token 数**（不是字节数）。  
+👉 这段时间既包含**CPU 侧的后处理与内存拷贝**，也包含**写盘 I/O**（如果 `postProcess` 里 `pickle.dump` 或你在别处保存），因此经常成为**尾部瓶颈**。
+
+
+#### 3.1.1.4 **Total time = `tok - tik1`**  
+    整个批（`qitem`）从**开始构建 batch**到**完成所有样本的 QuerySamplesComplete** 的总时间。  
+    若命中缓存（`self.use_cached_outputs and _p.exists()`），`tik1/2/3=None`，就只打印“Loaded from cache”。
+
+#### 3.1.1.5 其他关键点（日志与逻辑）
+
+- **“Samples run: N”**：是一个**全局累加计数器**，`+= len(qitem)`；即累计处理样本数，而不是 LoadGen 的“query 数”。
+- **文件命名**：`q{idx_1}_{idx_2}_... .pkl` 以样本索引拼接；你日志里的每行 `Saving outputs to run_outputs/qXXX.pkl` 就对应每个单样本（或小批）保存。频繁 I/O 会抬高 **Postprocess time**。
+- **padding 方向**：`pad((max_seq_len - input_len, 0, 0, 0))` 是**左 pad**；注意与你的 `generate`/模型位置编码习惯是否一致（有些实现偏向右 pad）。
+- **长度截断**：代码里没处理 `input_len > max_seq_len` 的情况——假设数据预处理阶段已保证不超长；否则需要先 `slice` 再 `pad`。
+
