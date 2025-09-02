@@ -1387,8 +1387,9 @@ for i in range(len(qitem)):
 
 
 #### 3.1.1.4 **Total time = `tok - tik1`**  
-    整个批（`qitem`）从**开始构建 batch**到**完成所有样本的 QuerySamplesComplete** 的总时间。  
-    若命中缓存（`self.use_cached_outputs and _p.exists()`），`tik1/2/3=None`，就只打印“Loaded from cache”。
+
+整个批（`qitem`）从**开始构建 batch**到**完成所有样本的 QuerySamplesComplete** 的总时间。  
+若命中缓存（`self.use_cached_outputs and _p.exists()`），`tik1/2/3=None`，就只打印“Loaded from cache”。
 
 #### 3.1.1.5 其他关键点（日志与逻辑）
 
