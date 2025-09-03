@@ -142,12 +142,18 @@ MLPerf Inference 是 **MLCommons 基金会**制定的一个 **人工智能推理
 
 跟上时代。由于ML仍在不断发展，我们建立了一个定期维护和更新MLPerf Inference的流程。请参阅[http://mlperf.org](https://link.zhihu.com/?target=http%3A//mlperf.org)了解最新的基准、规则等。
 
-# 5 sample and query的意思
+# 5 基础知识点 
+
+## 5.1 sample and query的意思
 https://blog.csdn.net/weixin_58277783/article/details/142006196
 
 MLPerf Inference 有2个基本概念: `sample`和`query`。
 - sample（样本）是运行inference的单位，例如一个image或sentence。
 - query（查询）是一组进行Inference的N个sample。例如单个query包含8个image。
+
+
+
+
 
 
 # 6 open_orca 数据集 
@@ -336,65 +342,13 @@ Candidate: `the cat is on the mat`
 - Precision = LCS 长度 / 模型输出长度 = 5 / 6 ≈ 0.8333
 - F1 = 2 × (P × R) / (P + R) ≈ 0.8333
 
+## 7.3 延迟限制和吞吐量之间的关系 
 
 
+B.指标:延迟与吞吐量延迟和吞吐量是密切相关的，将它们放在一起考虑是至关重要的:我们使用延迟限制吞吐量(表III)。当延迟限制出现时，系统可以提供出色的吞吐量，但性能却很差。例如，脱机和服务器场景之间的区别在于，后者施加了延迟限制，并实现了不一致的到达率。结果是较低的吞吐量，因为大的输入批次变得更难以形成。对于某些系统，服务器场景的延迟限制会使性能降低3%(相对于脱机);对其他人来说，损失要大得多(50%)。
 
 
-
-# 8 LoadGen 
-- **含义**：MLPerf 专门开发的 **负载生成器 (Load Generator)**。
-- **作用**：
-    - 模拟不同 **场景** 下的真实推理请求模式。
-    - 比如：
-        - **单流 (SingleStream)**：像手机实时应用一样，一个个请求顺序到来。
-        - **多流 (MultiStream)**：类似自动驾驶摄像头，多路视频同时输入。
-        - **批处理 (Server/Offline)**：一次处理一大批请求，适合数据中心。
-- **意义**：让不同提交者在 **统一负载模式下测试**，保证结果可比。
-- **类比**：就像跑分软件的“压力测试模块”，确保所有人跑的任务是一致的。
-
-
-MLPerf推理提供了一种方法来模拟被测推理系统的真实行为：开发了负载生成器（LoadGen）工具，它是一个模拟现实系统行为的查询流量生成器，有以下四个测量场景，每个场景解决一类用例，模拟移动设备、自动驾驶车辆、机器人和基于云的设置的机器学习工作负载行为。
-
-Load Generator是MLPerf的负载生成器，用于生成query，跟踪 query 的 Latency 并验证结果的准确性。每次运行 LoadGen 都会使用四种模式之一来评估系统的性能，最后提交的结果可以是{models, scenarios}的任意组合。
-
-
-## 8.1 qsl_idx 就是 Query Sample Library index 的缩写
-
-**`qsl_idx` 是验证集样本的唯一编号（索引），LoadGen 在 accuracy 日志里用它标记预测属于哪一条数据。**
-
-
-在 MLPerf Inference 里，qsl_idx 就是 Query Sample Library index 的缩写，全称 Query Sample Library Index。
-- MLPerf Inference 的负载生成器（**LoadGen**）会不断发起查询请求，每个请求对应验证集/校准集里的一个样本。
-- 这些样本都由 **QSL（Query Sample Library）** 统一管理，可以理解为“测试集中所有样本的一个编号数组”。
-
-
-----
-`qsl_idx` 的含义
-- 每个样本 sample (一个句子 或者 好几个句子的组合 )在 QSL 里有一个唯一的 **整数 ID**，就是 `qsl_idx`。    
-- 在 accuracy 日志（`mlperf_log_accuracy.json`）里，预测结果会带上这个 `qsl_idx`，用来表明 **“这是第几号样本的输出”**。
-- 脚本在解析日志时，就靠 `qsl_idx` 去找到对应的参考答案（ground truth）。
-
-```
-{
-  "qsl_idx": 1234,
-  "data": "7f3a...hex..."
-}
-
-```
-
-表示 第 1234 个样本 的输出是 "data" 里那串 token 序列。
-
----
-
-假设验证集有 24,576 条数据，那么：
-- QSL 会包含这 24,576 条的索引：`0, 1, 2, ..., 24575`。
-- 日志里每个 `qsl_idx` 就是这些编号之一。
-- 我们在代码里：
-    `target = targets[qsl_idx]   # 找到对应的参考答案`
-    这样就能对齐预测和 ground truth
-
-
-# 9 场景
+# 8 场景
 
 - 在照片分类等离线批处理中，所有数据都可以在（网络）存储中轻松获得，从而使加速器能够达到并保持峰值性能。 
 - 相比之下，翻译、图像标记和其他 Web 应用程序可能会根据最终用户流量而经历不同的到达模式。
@@ -420,12 +374,12 @@ Load Generator是MLPerf的负载生成器，用于生成query，跟踪 query 的
 3 SingleStream（单请求延迟流）
 模拟场景： 像手机实时应用一样，一个个请求顺序到来。 一系列输入被依次处理，模拟例如用户使用智能手机拍照的真实场景。反映客户端应用对响应性的需求。
 测试方法：LoadGen 一次只发一个请求，下一个请求需等待上一个完成。一个 query = 一个 sample (batch size = 1)，连续发
-测试只掉: 单样本的延迟时间 
+测试只掉: 单样本的延迟时间 .   。为了测量性能，我们将一个查询注入推理系统;当查询完成时，我们记录完成时间并注入下一个查询。度量是查询流的第90百分位延迟。
 
 4 MultiStream（多请求实时流）
 常用于工业自动化，遥感，自动驾驶摄像头场景。多路视频同时输入。 固定大小的一批输入被一个接一个地处理，例如检测障碍物的多摄像头汽车系统。
 测试方法 固定时间间隔发送包含 N 个样本的 query， 检查系统能否在时限内完成
-测试指标 多流并发时的延迟表现
+测试指标 多流并发时的延迟表现.  性能指标是系统在满足QoS要求的情况下支持的流的整数个数。
 
 5 Interactive（交互式，大语言模型对话）
 典型 LLM 应用，用户与模型交互。特点：强调 低 TTFT 和 稳定的 TPOT，以保证流畅对话体验。
@@ -452,7 +406,10 @@ loadGen针对不同的测试场景生成查询流量
 ![[7066bb501345479c8aac971ffb20d72a.png]]
 
 
-## 9.1 Offline模式
+## 8.1 Offline模式
+
+
+
 
 
 代表批处理应用程序，其中所有输入数据立即可用且延迟不受限制。一个例子是识别相册中的人物和位置。
@@ -460,7 +417,12 @@ LoadGen 向系统发送一个包含所有要处理的样本数据 ID 的单个�
 
 指标是以每秒样本数衡量的吞吐量。
 
-## 9.2 Server模式 
+## 8.2 Server模式 
+
+https://mlcommons.org/2024/03/mlperf-llama2-70b/
+The server scenario in [MLPerf Inference benchmarks](https://arxiv.org/pdf/1911.02549.pdf) simulates online applications where query arrival is random and the response latency is important. 
+The query arrival traffic is described with a Poisson distribution where the ==query arrival rate (queries per second or “target_qps”) is the Poisson parameter==. The test is successful if latency constraints for the benchmark are met.
+queries per second （从loadGen发射query 到这个query到达 SUT 的时间） 就是泊松参数
 
 query 到达时间是泊松分布（模拟随机请求）
  
@@ -475,7 +437,7 @@ QPS 在延迟 bound 下的最大值
 
 
 
-### 9.2.1 泊松分布
+### 8.2.1 泊松分布
 
 泊松分布（**Poisson Distribution**）是一种离散型概率分布，用于描述在固定时间间隔或空间区域内某事件发生次数的概率。它特别适合**事件稀疏、独立发生**的场景。
 
@@ -520,7 +482,7 @@ QPS 在延迟 bound 下的最大值
 
 
 
-## 9.3 Single stream 单流
+## 8.3 Single stream 单流
 
 此场景表示查询样本大小为 1 的一个推理查询流，反映了响应能力至关重要的许多客户端应用程序。如智能手机上的离线语音转录。
 
@@ -532,7 +494,7 @@ QPS 在延迟 bound 下的最大值
 - 注意，最后衡量的结果是Tail Latency而不是average Latency。
 
 
-## 9.4 Multiple stream 多流
+## 8.4 Multiple stream 多流
 
 代表具有查询流的应用程序，但每个查询都包含多个推理。例如，许多自动驾驶车辆分析来自六到八个同时传输的摄像机的帧。 因此，一个“查询（query）”包含 **N 个样本（samples）**，而不是 1 个。
 
@@ -552,5 +514,107 @@ QPS 在延迟 bound 下的最大值
     - 改为统计 **99% 分位延迟（99%-ile latency）**。
     - 这样可以统一不同场景的评价方式（和 SingleStream、Server 场景一致，都是看尾延迟）。
 
+
+
+## 8.5 确保符合基准标准
+
+为了确保合规性并防止潜在的漏洞，MLCOOM 设计了一种合规性检查机制。该测试旨在验证提交者生成的令牌是否符合预定义的标准。具体来说，对提交的内容进行了三项关键测试：
+
+1. **第一个令牌一致性**：出于计时目的，生成的第一个令牌必须与报告给 LoadGen 的第一个令牌相匹配，确保令牌生成过程的同步和准确性。
+2. **EOS 令牌验证**：序列结束（EOS）令牌不应在生成的输出中生成超过一次，以保持序列完成的一致性和完整性。
+3. **令牌计数验证**：模型生成的令牌总数必须与报告给 LoadGen 的数量一致，以验证生成的输出的完整性和准确性
+
+
+
+
+# 9 推理提交系统
+
+MLPerf Inference提交系统包含一个被测系统(SUT)、负载生成器(LoadGen)、一个数据集和一个准确性脚本。
+
+
+## 9.1 SUT
+
+精度量化校准
+我们还允许对许多不同的数字格式进行量化，以确保体系结构的中立性。提交者提前注册他们的数字，以帮助指导准确的目标讨论。批准的列表包括INT4、INT8、INT16、UINT8、UINT16、FP11(1位符号、5位尾数和5位指数)、FP16、bfloat16和FP32。量化到低精度格式通常需要校准以确保足够的推理质量。对于每个参考模型，MLPerf提供了一个小的固定数据集，可用于校准量化网络。此外，它提供了预量化到INT8的MobileNet版本，因为没有再训练(我们不允许)，精度会急剧下降。
+
+## 9.2 LoadGen 
+- **含义**：MLPerf 专门开发的 **负载生成器 (Load Generator)**。
+- **作用**：
+    - 模拟不同 **场景** 下的真实推理请求模式。
+    - 比如：
+        - **单流 (SingleStream)**：像手机实时应用一样，一个个请求顺序到来。
+        - **多流 (MultiStream)**：类似自动驾驶摄像头，多路视频同时输入。
+        - **批处理 (Server/Offline)**：一次处理一大批请求，适合数据中心。
+- **意义**：让不同提交者在 **统一负载模式下测试**，保证结果可比。
+- **类比**：就像跑分软件的“压力测试模块”，确保所有人跑的任务是一致的。
+
+
+MLPerf推理提供了一种方法来模拟被测推理系统的真实行为：开发了负载生成器（LoadGen）工具，它是一个模拟现实系统行为的查询流量生成器，有以下四个测量场景，每个场景解决一类用例，模拟移动设备、自动驾驶车辆、机器人和基于云的设置的机器学习工作负载行为。
+
+Load Generator是MLPerf的负载生成器，用于生成query，跟踪 query 的 Latency 并验证结果的准确性。每次运行 LoadGen 都会使用四种模式之一来评估系统的性能，最后提交的结果可以是{models, scenarios}的任意组合。
+
+
+
+---
+
+![[v2-4a3dc645edb18e54121100159f030492_1440w.jpg]]
+
+LoadGen是MLPerf Inference的流量生成器，它加载SUT并测量性能。它的行为由它在运行开始时读取的配置文件控制。LoadGen根据前面描述的场景(即单流、多流、服务器和脱机)的规则产生查询流量。此外，它还收集用于记录、调试和后处理数据的信息。它记录来自SUT的查询和响应，并在运行结束时报告统计信息、总结结果并确定运行是否有效。图4显示了LoadGen如何为每个场景创建查询流量。例如，在服务器场景中，它根据泊松分布发出查询，以模拟服务器的查询到达率。在单流的情况下，它向SUT发出查询，并在发出另一个查询之前等待该查询完成。
+
+在启动时，==LoadGen请求SUT将数据集样本加载到内存中。SUT可以将它们作为非定时操作加载到DRAM中==，并按照规则规定执行其他定时操作。这些非定时操作包括但不限于编译、缓存预热和预处理。当SUT准备好接收第一个查询时，向LoadGen发送信号;查询是对一个或多个样本进行推理的请求。LoadGen根据所选场景向SUT发送查询。根据该场景，它可以一次提交一个查询、定期提交查询或按泊松分布提交查询。SUT对每个查询运行推理，并将响应发送回LoadGen，后者记录响应或丢弃响应。运行之后，准确度脚本检查记录的响应，以确定模型准确度是否在公差范围内。
+
+我们设计了LoadGen来灵活地处理基准套件的变化。MLPerf Inference在SUT和LoadGen之间有一个接口，因此它可以处理LoadGen中的新场景和实验，并将它们推广到所有模型和SUT，而无需额外的努力。这样做还有助于遵从性和审计，因为许多关于查询到达、定时和准确性的技术规则是在提交程序代码之外实现的。我们通过将LoadGen与基准测试和内部表示(例如，模型、场景、质量和延迟指标)解耦来实现这一壮举。==LoadGen实现是一个独立的c++模块==。
+
+解耦允许LoadGen支持各种语言绑定，允许在任何语言中实现基准测试。LoadGen支持Python、C和c++绑定;可以添加其他绑定。将LoadGen与基准分离的另一个好处是，LoadGen是可扩展的，可以支持更多的场景，例如多租户模式，其中SUT必须在保持QoS约束的同时连续地为多个模型提供服务。
+
+
+
+### 9.2.1 qsl_idx 就是 Query Sample Library index 的缩写
+
+**`qsl_idx` 是验证集样本的唯一编号（索引），LoadGen 在 accuracy 日志里用它标记预测属于哪一条数据。**
+
+
+在 MLPerf Inference 里，qsl_idx 就是 Query Sample Library index 的缩写，全称 Query Sample Library Index。
+- MLPerf Inference 的负载生成器（**LoadGen**）会不断发起查询请求，每个请求对应验证集/校准集里的一个样本。
+- 这些样本都由 **QSL（Query Sample Library）** 统一管理，可以理解为“测试集中所有样本的一个编号数组”。
+
+
+----
+`qsl_idx` 的含义
+- 每个样本 sample (一个句子 或者 好几个句子的组合 )在 QSL 里有一个唯一的 **整数 ID**，就是 `qsl_idx`。    
+- 在 accuracy 日志（`mlperf_log_accuracy.json`）里，预测结果会带上这个 `qsl_idx`，用来表明 **“这是第几号样本的输出”**。
+- 脚本在解析日志时，就靠 `qsl_idx` 去找到对应的参考答案（ground truth）。
+
+```
+{
+  "qsl_idx": 1234,
+  "data": "7f3a...hex..."
+}
+
+```
+
+表示 第 1234 个样本 的输出是 "data" 里那串 token 序列。
+
+---
+
+假设验证集有 24,576 条数据，那么：
+- QSL 会包含这 24,576 条的索引：`0, 1, 2, ..., 24575`。
+- 日志里每个 `qsl_idx` 就是这些编号之一。
+- 我们在代码里：
+    `target = targets[qsl_idx]   # 找到对应的参考答案`
+    这样就能对齐预测和 ground truth
+
+
+
+# 10 文章
+
+- Llama 2 70B: An MLPerf Inference Benchmark for Large Language Models  https://mlcommons.org/2024/03/mlperf-llama2-70b/
+- 
+
+
+# 11 一些MLPref应用的实例
+
+- MLPerf inference基准测试步骤——Google Colab篇_onnx https://blog.csdn.net/weixin_58277783/article/details/135716056
+- MLPerf 基础知识笔记   https://blog.csdn.net/weixin_58277783/article/details/142006196
 
 
