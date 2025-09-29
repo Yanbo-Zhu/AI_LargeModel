@@ -46,6 +46,8 @@ https://blog.csdn.net/weixin_42605076/article/details/139377171
 - 应用不同：FLOPS 用于评估计算设备的处理能力和性能；FLOPs 用于衡量模型的计算复杂度和计算量。
 - 单位不同：FLOPS 的单位是每秒浮点运算次数（如 TFLOPS、GFLOPS）；FLOPs 的单位是浮点运算操作总数（如 MFLOPs、GFLOPs）。
 
+**Floating Point Operations per second**。
+
 
 ## 2.2 运行时间（Runtime）测量
 
