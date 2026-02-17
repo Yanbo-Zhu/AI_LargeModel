@@ -1,4 +1,7 @@
 
+langChain
+langGraph:  give you the trace of whole flow of information/call 
+
 
 ![](image/Pasted%20image%2020260115102020.png)
 
