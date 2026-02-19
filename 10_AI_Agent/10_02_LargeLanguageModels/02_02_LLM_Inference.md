@@ -8,26 +8,26 @@ positional encoding:
 
 
 
-![[Pasted image 20251113104433.png]]
+![[images/Pasted image 20251113104433.png]]
 
 
 # 2 Attention 
 
 what kind of words influeces the current of words right now 
 
-![[Pasted image 20251113105417.png]]
+![[images/Pasted image 20251113105417.png]]
 
 
-![[Pasted image 20251113110115.png]]
+![[images/Pasted image 20251113110115.png]]
 
 
 
 Masking: we only use the post token influcence the cureent token  
-![[Pasted image 20251113110625.png]]
+![[images/Pasted image 20251113110625.png]]
 
 
 
-![[Pasted image 20251113110810.png]]
+![[images/Pasted image 20251113110810.png]]
 
 
 
@@ -45,15 +45,15 @@ i b
 
 # 4 Output 
 
-![[Pasted image 20251120103630.png]]
+![[images/Pasted image 20251120103630.png]]
 
 
 
-![[Pasted image 20251120104128.png]]
+![[images/Pasted image 20251120104128.png]]
 
 
 
-![[Pasted image 20251120104430.png]]
+![[images/Pasted image 20251120104430.png]]
 
 
 the final embedding (it accumalte all the meaning of the prvious words). this embedding is a konzept
@@ -73,7 +73,7 @@ sampling: strategy how to generate the disturtion , sue this distrition help use
 你说的 “tempatur” 多半是 temperature（温度），它不是 Transformer 架构本身的组成部分，而是 在 Transformer 生成文本（如 GPT、T5 Decoder 等）时用于控制输出随机性的一个超参数
 
 
-![[Pasted image 20251120104946.png]]
+![[images/Pasted image 20251120104946.png]]
 
 
 
@@ -81,7 +81,7 @@ sampling: strategy how to generate the disturtion , sue this distrition help use
 
 # 5 Experiment 
 
-![[Pasted image 20251120104533.png]]
+![[images/Pasted image 20251120104533.png]]
 
 
 
