@@ -10,7 +10,7 @@
 
 ----
 
-TERMS
+## 1.1 TERMS
 
 Step / Iteration
 A single update of the model's parameters
@@ -21,6 +21,11 @@ One or multiple sequences of tokens
 Batch size
 LLM practice: Total number of tokens within a batch 
 ML: Number of sequences per batch
+max length of sequence  can be allowed    is the the size of content window 
+content size  is denfind by LLM,   key value matrix 决定了 content size 
+each sequence in a batch is in the same size 
+
+
 
 Training Data
 Corpus of text data
@@ -41,9 +46,16 @@ A numerical measure of how much the model's predictions differ from the expected
 Checkpoint
 Saved model state
 
+
+
 ----
 
-CONSIDERATIONS
+## 1.2 CONSIDERATIONS
+
+Gridient vanishing:  the input hat no influence on the last layer  
+Gridient Explode: a little change in input has huge impact on the output 
+
+
 GTP-3 175B used a batch size of 3.2 million tokens with about 1.562 sequences per batch
 
 Define the Scope and Resources
@@ -112,7 +124,7 @@ Post-training
 
 
 
-## 1.1 TRAINING ITERATION STEP BY STEP
+## 1.3 TRAINING ITERATION STEP BY STEP
 
 1 Data Loading and Preparation
 ▪ Create next batch and shift for prediction
@@ -165,6 +177,10 @@ What operations happen to an embedding within one transformer block (simplified)
 ----
 
 5  Optimizer step
+==gradient vanishing:  the input hat no influence on the last layer  ==
+==gradient Explode: a little change in input has huge impact on the output ==
+==gradient: find the direct where the loss change at most ==
+
 The gradient information computed in step 4 (backpropagation) is used in this step to update the model parameters
 The gradient give the direction of change that increases the loss 
 Potential optimizer: Stochastic Gradient Descent (SGD) or Adam
@@ -189,7 +205,7 @@ Potential optimizer: Stochastic Gradient Descent (SGD) or Adam
 ▪ Roll back if training diverges
 
 
-## 1.2 METRICS
+## 1.4 METRICS
 
 Cross-entropy
 Measures the dissimilarity between the true distribution and the predicted distribution [for training]
@@ -1650,70 +1666,6 @@ CUSTOM BENCHMARKING
 
 
 compare the LLm's solution without the musterlosung in buch
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
