@@ -911,9 +911,26 @@ find the global sequence probability
 ▪ Used for translation, speech recognition and summarization
 ▪ Computationally expensive
 
+▪ 并行探索多个得分最高的部分候选序列（partial hypotheses）。
+
+▪ Argmax（贪心）只最大化当前步骤的局部概率，
+而 Beam Search 试图找到整体序列概率最大的结果。
+
+▪ 在每一个解码步骤中，保留得分最高的 B 个候选序列（B = beam width）。
+
+▪ 重复该过程，直到生成 EOS（结束符）或达到最大长度。
+
+▪ 最终输出总 log-probability 最高的完整序列。
+
+▪ 相比采样方法，更加确定性（deterministic），但创造性较低。
+
+▪ 常用于机器翻译、语音识别和文本摘要。
+
+▪ 计算开销较大（computationally expensive）。
+
 ![](image/Pasted%20image%2020260220101902.png)
 
-
+## 8.4 
 
 
 ![[images/Pasted image 20251120104430.png]]
@@ -930,7 +947,7 @@ sampling: strategy how to generate the disturtion , sue this distrition help use
 
 
 
-## 8.4 temperature  in output processing 
+## 8.5 temperature  in output processing 
 
 
 你说的 “tempatur” 多半是 temperature（温度），它不是 Transformer 架构本身的组成部分，而是 在 Transformer 生成文本（如 GPT、T5 Decoder 等）时用于控制输出随机性的一个超参数
