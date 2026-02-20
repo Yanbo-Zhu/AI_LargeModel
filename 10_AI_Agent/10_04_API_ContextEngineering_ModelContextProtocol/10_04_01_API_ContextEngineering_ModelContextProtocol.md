@@ -221,7 +221,14 @@ Stateful:  hide the reasoning (lead to the conclude) in the cache, do not provid
 Build-in tool:  active through api behind the scene 
 
 ## 3.1 CHAT COMPLETION API
+
 给模型一段 prompt，模型补全（complete）后面的文本。
+The Chat Completion API is an interface that allows developers to generate conversational responses from a large language model.
+Uses HTTP requests to call the model
+Accepts a structured messages array
+Supports multi-turn conversations
+Returns AI-generated text responses
+
 
 ![](image/Pasted%20image%2020260219110321.png)
 
@@ -229,7 +236,8 @@ Concept
 ▪ Introduced by OpenAI in June 2020
 ▪ REST API for base and instruction-tuned models
 ▪ GTP-3 model family
-▪ Access (originally): Invite-only, Public from Nov. 2021 ▪ Declared legacy, Last update in July 2023
+▪ Access (originally): Invite-only, Public from Nov. 2021 
+▪ Declared legacy, Last update in July 2023
 
 Technical Details
 ▪ End point: https://api.openai.com/v1/completions
@@ -300,9 +308,6 @@ ChatCompletionAPI of OpenAI supports only a subset of the JSON schema language
 
 ## 3.2 RESPONSES API
 
-
-
----
 
 
 Concept
@@ -469,7 +474,8 @@ Downsides
 ==Prompts are Model-specific==
 ▪ Anthropic recommends to structure prompts with XML tags
 ▪ OpenAI suggests to structure prompts with Markdown tags
-▪ Gpt-3.5-turbo performs better if instruction is placed at start of prompt ▪ Llama-2 performs better if instruction is placed at the end of a prompt ▪ Limited windows length
+▪ Gpt-3.5-turbo performs better if instruction is placed at start of prompt 
+▪ Llama-2 performs better if instruction is placed at the end of a prompt ▪ Limited windows length
 ▪ Static prefix for caching efficiency
 
 ▪ Anthropic 建议使用 XML 标签来结构化 Prompt
@@ -692,8 +698,6 @@ Self-consistency
 ▪ Solution: Step 1: Prompt with few-shot CoT examples, Step 2: Sample different reasoning paths (e.g., changing temperature, top-k sampling, nucleus sampling), 
 Step 3: Select the result that is most consistent among sampled reasoning paths.
 
-好的 👍 我给你做一个**清晰、偏考试风格的中文翻译**：
-
 
 ▪ **情境（Situation）：**
 对于同一个任务，可能存在多种不同的推理路径（reasoning paths）能够得出相同的结果。
@@ -793,7 +797,7 @@ Self-consistency
 ## 4.9 META PROMPTING
 
 Meta Prompting
-▪ Focus on structural and syntactical aspects of tasks and problems rather than content-specific examples.
+▪== Focus on structural and syntactical aspects of tasks and problems rather than content-specific examples.==
 ▪ "A Meta Prompt is an example-agnostic structured prompt designed to capture the reasoning structure of a specific category of tasks [...] it outlines the general approach to the problem"
 ▪ For each category of tasks there exists a structured meta prompt that described how to solve the problem rather than giving few- shot examples.
 ▪ Prompts for complex task and problems can be decomposed into meta prompts for each subtask
@@ -837,7 +841,7 @@ Meta Prompting
 
 ![](image/Pasted%20image%2020260219153334.png)
 
-## 4.10 RETRIEVE THEN SOLVE PROMPTING
+## 4.10 RETRIEVE THEN SOLVE PROMPTING： 通过 Prompt 先让模型从上下文中检索出与问题相关的信息。
 
 
 ▪ Core idea: Separate retrieval from reasoning
@@ -938,7 +942,7 @@ Client-controlled scope boundaries that specify which parts of the client's cont
 
 
 Elicitation
-Allows a server to request structured input or confirmation from a human user via the client, enabling explicit human-in-the-loop interaction
+==Allows a server to request structured input or confirmation from a human user via the clien==t, enabling explicit human-in-the-loop interaction
 
 允许服务器通过客户端向人类用户请求结构化输入或确认，
 从而实现明确的"人类在环（Human-in-the-loop）"交互。

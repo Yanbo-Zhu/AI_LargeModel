@@ -182,7 +182,7 @@ What operations happen to an embedding within one transformer block (simplified)
 ==gradient: find the direct where the loss change at most ==
 
 The gradient information computed in step 4 (backpropagation) is used in this step to update the model parameters
-The gradient give the direction of change that increases the loss 
+==The gradient give the direction of change that increases the loss ==
 Potential optimizer: Stochastic Gradient Descent (SGD) or Adam
 
 ![](image/Pasted%20image%2020260219205846.png)
@@ -497,7 +497,7 @@ Model weights are updated
 
 ---
 
-PROXIMAL POLICY OPTIMIZATION
+## 2.9 PROXIMAL POLICY OPTIMIZATION
 近端的；近源的；
 
 
@@ -575,7 +575,7 @@ Stop When Stable
 
 
 
-## 2.9 DIRECT SEQUENCE OPTIMIZATION (DPO)
+## 2.10 DIRECT SEQUENCE OPTIMIZATION (DPO)
 
 RLHF 是"训练一个奖励模型 + 用 PPO 优化策略"
 DPO 是"直接用偏好数据做对比学习式优化"
@@ -716,7 +716,6 @@ Cat     Dog     Rabbit
 soft target 训练 → 决策边界更"平滑"
 
 这能带来：
-
 * 更好的泛化能力
 * 更稳定的训练
 * 更接近教师模型的行为
@@ -875,7 +874,6 @@ Types of Quantization (What?)
 ▪ Weight-only quantization
 ▪ Activation quantization (weights and activations) 
 ▪ KV-cache quantization
-
 
 * **仅权重量化（Weight-only quantization）**
 * **权重 + 激活值量化（Activation quantization）**
@@ -1373,7 +1371,7 @@ R: ranking betwenn 1 and 0
 
 ---
 
-Deterministic Matching
+### 6.6.1 Deterministic Matching
 ▪ Exact Match
 ▪ Fuzzy Match: Allows for minor variations, such as ignoring whitespace or formatting.
 ▪ Word or Item Match: Verifies if the response includes specific fixed words or strings, regardless of full phrasing.
@@ -1405,7 +1403,7 @@ Unit Test Pass Rate（单元测试通过率）
 
 ---
 
-Overlap-based Metrics
+### 6.6.2 Overlap-based Metrics
 ▪ BLEU (Bilingual Evaluation Understudy): Evaluates n-gram overlap (commonly up to 4). Focuses on precision; penalizes brevity. "How much of what the model wrote appears in the reference?"
 ▪ ROUGE-n (Recall-Oriented Understudy for Gisting Evaluation): Evaluates the specified n-gram overlap. Focuses on recall. "How much of the reference content did the model capture?"
 ▪ METEOR (Metric for Evaluation of Translation with Explicit Ordering).
